@@ -4,10 +4,11 @@
 #include <conio.h>
 #include <windows.h>
 
-//------------------------------Const-----------------------------------
+//------------------------------Define-----------------------------------
 
-#define HEIGHT 25
+#define HEIGHT 24
 #define WIDTH 13
+#define INFO_WIDTH 8
 
 #define BOX_LENGTH 4
 
@@ -26,6 +27,10 @@
 #define BOX_HOLLOW 0
 #define BOX_SOLID 1
 
+//积分相关
+#define SCORE_COMMON 10
+#define SCORE_DIFF 20
+
 #define KEY_DOWN(key) GetAsyncKeyState(key)==(SHORT)0x8001?1:0
 
 //-------------------------globalVariable-------------------------------
@@ -34,11 +39,14 @@ HANDLE g_handle;//句柄
 
 //旋转次数
 int g_rotate_times = 0; 
+int g_next_rotate_times = 0;
 int g_box_x = 0;
 int g_box_y = WIDTH / 2 - 1;
 int g_box_type = 0;
+int g_next_box_type = 0;
 int g_score = 0;
 int g_max_height = HEIGHT;
+int g_diffFlag = 0;
 
 //全局地图
 char g_map[HEIGHT][WIDTH] = { MAP_FREE };
@@ -82,12 +90,18 @@ void rotateToBox(char *srcBox, char *destBox, int times);
 void initMap();
 // 获取地图内容
 char* getMapValue(int i, int j);
+//画信息框
+void drawInfo();
+//更新积分
+void updateScore();
 //画地图
 void drawMap();
 //清理格子
 void clearBox();
 //画格子
 void drawBox();
+//画下一个格子
+void drawNextBox();
 //设置光标不显示
 void showCursorVisible(bool flag);
 //画字符
@@ -100,7 +114,7 @@ void moveControl();
 //固定到地图
 void fixedToMap();
 //消行
-void elimination();
+int elimination();
 //随机格子
 void randomBox();
 //检测碰撞
@@ -117,6 +131,10 @@ void moveTurn();
 void gameInit();
 //开始游戏
 int startGame();
+//结束游戏
+void endGame();
+//菜单
+void menu();
 
 //--------------------------------------------------------------------------
 
@@ -131,7 +149,7 @@ void showCursorVisible(bool flag) {
 //画字符 x y 与二维数组逻辑 i j相反
 void writeChar(short x, short y, const char* pStr)
 {
-    //showCursorVisible(false);//不可显示
+    showCursorVisible(false);//不可显示
     SetConsoleCursorPosition(g_handle, { x * 2,y });
     printf("%s", pStr);
 }
@@ -206,6 +224,37 @@ char* getMapValue(int i, int j)
     }
 }
 
+//画信息框
+void drawInfo()
+{
+    for (int i = 0; i < HEIGHT; ++i)
+    {
+        for (int j = WIDTH; j <= WIDTH + INFO_WIDTH; ++j)
+        {
+            if(i == 0 || i == HEIGHT-1 )
+                writeChar(j, i, "- ");
+            else if(j == (WIDTH + INFO_WIDTH))
+                writeChar(j, i, "|");
+        }
+    }
+    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT / 3 - 1, "积分：0");
+    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT/2 - 1, "说明：");
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT/2, "↑键:旋转");
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 2, "↓键:加速");
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 4, "←键:左移");
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 6, "→键:右移");
+
+    
+}
+
+//更新积分
+void updateScore()
+{
+    char str[10] = "积分：0";
+    sprintf(str+6,"%d",g_score);
+    writeChar(WIDTH + INFO_WIDTH / 6, HEIGHT / 3 - 1, str);
+}
+
 //画地图
 void drawMap()
 {
@@ -249,6 +298,26 @@ void drawBox()
     }
 }
 
+// 画下一个格子
+void drawNextBox()
+{
+    writeChar(WIDTH, 1, "下一个:");
+    for (int i = 0; i < BOX_LENGTH; ++i)
+    {
+        for (int j = 0; j < BOX_LENGTH; ++j)
+        {
+            if (g_next_box[i][j] == BOX_SOLID)
+            {
+                writeChar(j + WIDTH + 2, i + 2, "■");
+            }
+            else
+            {
+                writeChar(j + WIDTH + 2, i + 2, "  ");
+            }
+        }
+    }
+}
+
 //初始化地图
 void initMap()
 {
@@ -270,22 +339,32 @@ void initMap()
 //随机格子
 void randomBox()
 {
-    int totalType = sizeof(g_box) / BOX_LENGTH / BOX_LENGTH;
-    g_box_type = rand() % totalType;
-    g_rotate_times = rand() % 4;
+    //将下一个作为当前格子
+    g_box_type = g_next_box_type;
+    g_rotate_times = g_next_rotate_times;
+    
     rotateToBox((char*)g_box+ g_box_type*BOX_LENGTH*BOX_LENGTH,
                                     (char*)g_cur_box, g_rotate_times);
     g_box_x = 0;
     g_box_y = WIDTH / 2 - 1;
 
+    //重新生成下一个
+    int totalType = sizeof(g_box) / BOX_LENGTH / BOX_LENGTH;
+    g_next_box_type = rand() % totalType;
+    g_next_rotate_times = rand() % 4;
+    rotateToBox((char*)g_box + g_next_box_type*BOX_LENGTH*BOX_LENGTH,
+        (char*)g_next_box, g_next_rotate_times);
+
     drawBox();
+    drawNextBox();
 }
 
 // 消行
-void elimination()
+int elimination()
 {
     int times = 0;
     int mapX = g_box_x;
+    int counts = 0; //消行行数
     while (times < BOX_LENGTH) {
         int flag = 1;
         for (int j = 1; j < WIDTH - 1; ++j) {
@@ -296,6 +375,7 @@ void elimination()
         }
         if (flag) //能消行
         {
+            ++counts;
             for (int i = mapX + times; i >= g_max_height; --i)
             {
                 for (int j = 1; j < WIDTH - 1; ++j) {
@@ -314,6 +394,7 @@ void elimination()
         }
         times++;
     }
+    return counts;
 }
 
 //固定到地图
@@ -383,7 +464,19 @@ void moveDown()
     else
     {
         fixedToMap();
-        elimination();
+        int counts = elimination();
+        if (g_diffFlag && counts) //困难
+        {
+            g_score += counts * SCORE_DIFF;
+        }
+        else if (counts) //普通
+        {
+            g_score += counts * SCORE_COMMON;
+        }
+        if (counts)
+        {
+            updateScore();
+        }
         randomBox();
     }
 }
@@ -420,6 +513,8 @@ void moveControl()
         else if (KEY_DOWN(0x28))
         { //下
             moveDown();
+            if(g_diffFlag)
+                moveDown();
         }
         else if (KEY_DOWN(0x25))
         { //左
@@ -435,22 +530,32 @@ void moveControl()
         }
         else 
         {
-            moveDown();
+            if (g_diffFlag)
+                moveDown();
         }
-        Sleep(130);
-        //moveDown();
+        if(g_max_height <= 0)
+            break;
+        if(g_diffFlag)
+            Sleep(125);
     }
 }
 
 //开始游戏
 int startGame()
 {
-    system("cls");
+    menu();
     drawMap();
+    drawInfo();
     randomBox();
     moveControl();
     
     return 1;
+}
+
+//结束游戏
+void endGame()
+{
+    writeChar(0, HEIGHT + 1, "游戏结束\r\n");
 }
 
 //游戏开始前初始化工作
@@ -460,17 +565,44 @@ void gameInit()
     srand((unsigned)time(NULL));
 
     keybd_event(VK_SHIFT, 0, 0, 0);
-    Sleep(100);
+    //Sleep(100);
     keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0);
+
+    // 初始化下一个格子
+    int totalType = sizeof(g_box) / BOX_LENGTH / BOX_LENGTH;
+    g_next_box_type = rand() % totalType;
+    g_next_rotate_times = rand() % 4;
 
     initMap();
 }
 
+//菜单
+void menu()
+{
+    while (1)
+    {
+        system("cls");
+        printf("0.简单模式\r\n");
+        printf("1.困难模式\r\n");
+        printf("请选择模式:");
+        scanf("%d",&g_diffFlag);
+        if (g_diffFlag != 1 && g_diffFlag != 0) {
+            printf("对不起,请选择0或者1\r\n");
+            system("pause");
+        }
+        else
+        {
+            break;
+        }
+    }
+    system("cls");
+}
 
 int main(int argc, char *argv)
 {  
     gameInit();
     startGame();
+    endGame();
     system("pause");
     return 0;
 }
