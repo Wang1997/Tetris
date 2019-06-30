@@ -6,7 +6,7 @@
 
 //------------------------------Const-----------------------------------
 
-#define HEIGHT 22
+#define HEIGHT 25
 #define WIDTH 13
 
 #define BOX_LENGTH 4
@@ -25,6 +25,8 @@
 //格子相关
 #define BOX_HOLLOW 0
 #define BOX_SOLID 1
+
+#define KEY_DOWN(key) GetAsyncKeyState(key)==(SHORT)0x8001?1:0
 
 //-------------------------globalVariable-------------------------------
 
@@ -411,35 +413,31 @@ void moveControl()
 {
     while (1)
     {
-        if (_kbhit())
-        {
-            char ch = _getch();
-            switch (ch)
-            {
-                case 'W':
-                case 'w':
-                    moveTurn();
-                    break;
-                case 'S':
-                case 's':
-                    moveDown();
-                    break;
-                case 'A':
-                case 'a':
-                    moveLeft();
-                    break;
-                case 'D':
-                case 'd':
-                    moveRight();
-                    break;
-                case 'Q':
-                case 'q':
-                    return;
-                default :
-                    break;
-            }
+        if (KEY_DOWN(0x26)) 
+        { //上
+            moveTurn();
         }
-        Sleep(100);
+        else if (KEY_DOWN(0x28))
+        { //下
+            moveDown();
+        }
+        else if (KEY_DOWN(0x25))
+        { //左
+            moveLeft();
+        }
+        else if (KEY_DOWN(0x27))
+        { //右
+            moveRight();
+        }
+        else if (KEY_DOWN('Q'))
+        { //Q
+            return;
+        }
+        else 
+        {
+            moveDown();
+        }
+        Sleep(130);
         //moveDown();
     }
 }
@@ -460,6 +458,11 @@ void gameInit()
 {
     g_handle = GetStdHandle(STD_OUTPUT_HANDLE);
     srand((unsigned)time(NULL));
+
+    keybd_event(VK_SHIFT, 0, 0, 0);
+    Sleep(100);
+    keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0);
+
     initMap();
 }
 
