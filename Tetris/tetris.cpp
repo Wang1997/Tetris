@@ -2,9 +2,37 @@
 #include <time.h>
 #include <stdlib.h>
 #include <conio.h>
+#include <math.h>
+#include <locale.h>
 #include <windows.h>
 
 //------------------------------Define-----------------------------------
+
+#define UNICODE
+
+#ifndef UNICODE
+
+    #define TCHAR char
+    #define _tprintf printf
+    #define _tsprintf sprintf
+    #define _tscanf scanf
+    #define _tcslen strlen
+    #define _tsystem system
+    #define _tmain main
+    #define _T(x) x
+
+#else /*UNICODE*/
+
+    #define TCHAR wchar_t
+    #define _tprintf wprintf
+    #define _tsprintf wsprintf
+    #define _tscanf wscanf
+    #define _tcslen wcslen
+    #define _tsystem _wsystem
+    #define _tmain wmain
+    #define _T(x) L##x
+#endif
+
 
 #define HEIGHT 24
 #define WIDTH 13
@@ -49,10 +77,10 @@ int g_max_height = HEIGHT;
 int g_diffFlag = 0;
 
 //全局地图
-char g_map[HEIGHT][WIDTH] = { MAP_FREE };
+TCHAR g_map[HEIGHT][WIDTH] = { MAP_FREE };
 
 //随机格子
-char g_box[][BOX_LENGTH] = {
+TCHAR g_box[][BOX_LENGTH] = {
     //土
     BOX_HOLLOW,BOX_SOLID,BOX_HOLLOW,BOX_HOLLOW,
     BOX_SOLID,BOX_SOLID,BOX_SOLID,BOX_HOLLOW,
@@ -76,20 +104,20 @@ char g_box[][BOX_LENGTH] = {
 };
 
 //当前下落格子
-char g_cur_box[BOX_LENGTH][BOX_LENGTH] = { BOX_HOLLOW };
+TCHAR g_cur_box[BOX_LENGTH][BOX_LENGTH] = { BOX_HOLLOW };
 //下一个下落格子
-char g_next_box[BOX_LENGTH][BOX_LENGTH] = { BOX_HOLLOW };
+TCHAR g_next_box[BOX_LENGTH][BOX_LENGTH] = { BOX_HOLLOW };
 
 //------------------------------Function-----------------------------------
 
 //获取格子对应的下标
 int getBoxIndex(int i, int j);
 //旋转方块
-void rotateToBox(char *srcBox, char *destBox, int times);
+void rotateToBox(TCHAR *srcBox, TCHAR *destBox, int times);
 //初始化地图
 void initMap();
 // 获取地图内容
-char* getMapValue(int i, int j);
+TCHAR* getMapValue(int i, int j);
 //画信息框
 void drawInfo();
 //更新积分
@@ -105,7 +133,7 @@ void drawNextBox();
 //设置光标不显示
 void showCursorVisible(bool flag);
 //画字符
-void writeChar(short x, short y, const char* pStr);
+void writeChar(short x, short y, const TCHAR* pStr);
 
 /**********************Logic***************************/
 
@@ -147,11 +175,11 @@ void showCursorVisible(bool flag) {
 }
 
 //画字符 x y 与二维数组逻辑 i j相反
-void writeChar(short x, short y, const char* pStr)
+void writeChar(short x, short y, const TCHAR* pStr)
 {
     showCursorVisible(false);//不可显示
     SetConsoleCursorPosition(g_handle, { x * 2,y });
-    printf("%s", pStr);
+    _tprintf(_T("%s"), pStr);
 }
 
 //获取格子对应的下标
@@ -161,7 +189,7 @@ int getBoxIndex(int i, int j)
 }
 
 //旋转方块
-void rotateToBox(char *srcBox,char *destBox,int times)
+void rotateToBox(TCHAR *srcBox,TCHAR *destBox,int times)
 {
     int remainder = times % 4;
     if (ROTATE_UP == remainder) 
@@ -208,19 +236,19 @@ void rotateToBox(char *srcBox,char *destBox,int times)
 }
 
 // 获取地图内容
-char* getMapValue(int i, int j)
+TCHAR* getMapValue(int i, int j)
 {
     if (g_map[i][j] == MAP_FREE)
     {
-        return "□";
+        return _T("□");
     }
     else if (g_map[i][j] == MAP_BOX)
     {
-        return "■";
+        return _T("■");
     }
     else
     {
-        return "★";
+        return _T("★");
     }
 }
 
@@ -232,17 +260,17 @@ void drawInfo()
         for (int j = WIDTH; j <= WIDTH + INFO_WIDTH; ++j)
         {
             if(i == 0 || i == HEIGHT-1 )
-                writeChar(j, i, "- ");
+                writeChar(j, i, _T("- "));
             else if(j == (WIDTH + INFO_WIDTH))
-                writeChar(j, i, "|");
+                writeChar(j, i, _T("|"));
         }
     }
-    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT / 3 - 1, "积分：0");
-    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT/2 - 1, "说明：");
-    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT/2, "↑键:旋转");
-    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 2, "↓键:加速");
-    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 4, "←键:左移");
-    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 6, "→键:右移");
+    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT / 3 - 1, _T("积分：0"));
+    writeChar(WIDTH + INFO_WIDTH/6, HEIGHT/2 - 1, _T("说明："));
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT/2, _T("↑键:旋转"));
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 2, _T("↓键:加速"));
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 4, _T("←键:左移"));
+    writeChar(WIDTH + INFO_WIDTH/3, HEIGHT / 2 + 6, _T("→键:右移"));
 
     
 }
@@ -250,8 +278,11 @@ void drawInfo()
 //更新积分
 void updateScore()
 {
-    char str[10] = "积分：0";
-    sprintf(str+6,"%d",g_score);
+    //LPTSTR
+    TCHAR str[10] = _T("积分：");
+    int len = _tcslen(str);
+    
+    //_tsprintf(str+6,"%d",g_score);
     writeChar(WIDTH + INFO_WIDTH / 6, HEIGHT / 3 - 1, str);
 }
 
@@ -264,7 +295,7 @@ void drawMap()
         {
             writeChar(j, i, getMapValue(i,j));
         }
-        printf("\r\n");
+        _tprintf(_T("\r\n"));
     }
 }
 
@@ -277,7 +308,7 @@ void clearBox()
         {
             if (g_cur_box[i][j] == BOX_SOLID)
             {
-                writeChar(j + g_box_y, i + g_box_x, "□");
+                writeChar(j + g_box_y, i + g_box_x, _T("□"));
             }
         }
     }
@@ -292,7 +323,7 @@ void drawBox()
         {
             if (g_cur_box[i][j] == BOX_SOLID)
             {
-                writeChar(j + g_box_y, i + g_box_x, "■");
+                writeChar(j + g_box_y, i + g_box_x, _T("■"));
             }
         }
     }
@@ -301,18 +332,18 @@ void drawBox()
 // 画下一个格子
 void drawNextBox()
 {
-    writeChar(WIDTH, 1, "下一个:");
+    writeChar(WIDTH, 1, _T("下一个:"));
     for (int i = 0; i < BOX_LENGTH; ++i)
     {
         for (int j = 0; j < BOX_LENGTH; ++j)
         {
             if (g_next_box[i][j] == BOX_SOLID)
             {
-                writeChar(j + WIDTH + 2, i + 2, "■");
+                writeChar(j + WIDTH + 2, i + 2, _T("■"));
             }
             else
             {
-                writeChar(j + WIDTH + 2, i + 2, "  ");
+                writeChar(j + WIDTH + 2, i + 2, _T("  "));
             }
         }
     }
@@ -343,8 +374,8 @@ void randomBox()
     g_box_type = g_next_box_type;
     g_rotate_times = g_next_rotate_times;
     
-    rotateToBox((char*)g_box+ g_box_type*BOX_LENGTH*BOX_LENGTH,
-                                    (char*)g_cur_box, g_rotate_times);
+    rotateToBox((TCHAR*)g_box+ g_box_type*BOX_LENGTH*BOX_LENGTH,
+                                    (TCHAR*)g_cur_box, g_rotate_times);
     g_box_x = 0;
     g_box_y = WIDTH / 2 - 1;
 
@@ -352,8 +383,8 @@ void randomBox()
     int totalType = sizeof(g_box) / BOX_LENGTH / BOX_LENGTH;
     g_next_box_type = rand() % totalType;
     g_next_rotate_times = rand() % 4;
-    rotateToBox((char*)g_box + g_next_box_type*BOX_LENGTH*BOX_LENGTH,
-        (char*)g_next_box, g_next_rotate_times);
+    rotateToBox((TCHAR*)g_box + g_next_box_type*BOX_LENGTH*BOX_LENGTH,
+        (TCHAR*)g_next_box, g_next_rotate_times);
 
     drawBox();
     drawNextBox();
@@ -485,8 +516,8 @@ void moveDown()
 void moveTurn()
 {
     clearBox();
-    rotateToBox((char*)g_box + g_box_type*BOX_LENGTH*BOX_LENGTH,
-        (char*)g_cur_box, g_rotate_times+1);
+    rotateToBox((TCHAR*)g_box + g_box_type*BOX_LENGTH*BOX_LENGTH,
+        (TCHAR*)g_cur_box, g_rotate_times+1);
     if (!checkBump(g_box_x , g_box_y))
     {
         g_rotate_times++;
@@ -495,8 +526,8 @@ void moveTurn()
     else
     {
         //还原
-        rotateToBox((char*)g_box + g_box_type*BOX_LENGTH*BOX_LENGTH,
-            (char*)g_cur_box, g_rotate_times);
+        rotateToBox((TCHAR*)g_box + g_box_type*BOX_LENGTH*BOX_LENGTH,
+            (TCHAR*)g_cur_box, g_rotate_times);
         drawBox();
     }
 }
@@ -504,6 +535,7 @@ void moveTurn()
 // 移动控制
 void moveControl()
 {
+    int totalNum = 0;
     while (1)
     {
         if (KEY_DOWN(0x26)) 
@@ -513,8 +545,6 @@ void moveControl()
         else if (KEY_DOWN(0x28))
         { //下
             moveDown();
-            if(g_diffFlag)
-                moveDown();
         }
         else if (KEY_DOWN(0x25))
         { //左
@@ -528,15 +558,16 @@ void moveControl()
         { //Q
             return;
         }
-        else 
-        {
-            if (g_diffFlag)
-                moveDown();
-        }
+
         if(g_max_height <= 0)
             break;
-        if(g_diffFlag)
-            Sleep(125);
+        Sleep(50);
+        if (g_diffFlag)
+        {
+            totalNum++;
+            if (totalNum % 10 == 0)
+                moveDown();
+        }
     }
 }
 
@@ -555,12 +586,16 @@ int startGame()
 //结束游戏
 void endGame()
 {
-    writeChar(0, HEIGHT + 1, "游戏结束\r\n");
+    writeChar(0, HEIGHT + 1, _T("游戏结束\r\n"));
 }
 
 //游戏开始前初始化工作
 void gameInit()
 {
+#ifdef UNICODE
+    setlocale(LC_ALL, "chs");
+#endif
+    
     g_handle = GetStdHandle(STD_OUTPUT_HANDLE);
     srand((unsigned)time(NULL));
 
@@ -581,28 +616,28 @@ void menu()
 {
     while (1)
     {
-        system("cls");
-        printf("0.简单模式\r\n");
-        printf("1.困难模式\r\n");
-        printf("请选择模式:");
-        scanf("%d",&g_diffFlag);
+        _tsystem(_T("cls"));
+        _tprintf(_T("0.简单模式\r\n"));
+        _tprintf(_T("1.困难模式\r\n"));
+        _tprintf(_T("请选择模式:"));
+        _tscanf(_T("%d"),&g_diffFlag);
         if (g_diffFlag != 1 && g_diffFlag != 0) {
-            printf("对不起,请选择0或者1\r\n");
-            system("pause");
+            _tprintf(_T("对不起,请选择0或者1\r\n"));
+            _tsystem(_T("pause"));
         }
         else
         {
             break;
         }
     }
-    system("cls");
+    _tsystem(_T("cls"));
 }
 
-int main(int argc, char *argv)
+int _tmain(int argc, TCHAR *argv)
 {  
     gameInit();
     startGame();
     endGame();
-    system("pause");
+    _tsystem(_T("pause"));
     return 0;
 }
